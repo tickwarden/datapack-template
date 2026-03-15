@@ -1,0 +1,65 @@
+# 🟩 Minecraft Datapack Template
+
+A clean, ready-to-use Minecraft Java Edition datapack template with lint workflows included.
+
+## 📁 File Structure
+```
+datapack-template/
+├── pack.mcmeta              # Datapack metadata (format version, description)
+├── pack.png                 # Datapack icon (optional, 64x64 PNG)
+├── data/
+│   └── CHANGE_ME/           # ← Rename this to your namespace
+│       ├── function/
+│       │   ├── load.mcfunction   # Runs once on load/reload
+│       │   └── tick.mcfunction   # Runs every game tick
+│       └── tags/
+│           └── function/
+│               ├── load.json     # Registers load.mcfunction
+│               └── tick.json     # Registers tick.mcfunction
+├── .gitattributes           # Prevents CRLF line ending issues
+├── .github/
+│   └── workflows/
+│       └── mcfunction-lint.yml  # Auto-checks code on push
+└── README.md
+```
+
+## 🚀 Getting Started
+
+1. Click **"Use this template"** → **"Create a new repository"**
+2. Clone your new repo
+3. Rename the `CHANGE_ME` folder to your namespace (e.g. `myaddon`)
+4. Edit `pack.mcmeta` — update the description
+5. Copy the datapack folder into your world's `datapacks/` directory:
+```
+   .minecraft/saves/<your_world>/datapacks/
+```
+6. In-game, run:
+```
+   /reload
+```
+7. Start building in `load.mcfunction` and `tick.mcfunction`
+
+## ⚠️ Requirements
+
+- Minecraft Java Edition **1.21.4+** (pack format 61)
+- No mods required — vanilla only
+
+## 🤝 Contributing
+
+Contributions are welcome!
+
+1. Fork this repository
+2. Create a new branch:
+```
+   git checkout -b feature/my-change
+```
+3. Make your changes
+4. Make sure the lint workflow passes (no CRLF, correct macro prefixes)
+5. Open a Pull Request with a clear description of what you changed
+
+> **Note:** Please keep all `.mcfunction` files in **LF** line endings.  
+> Use `git config core.autocrlf false` before committing.
+
+## 📄 License
+
+MIT — free to use, modify, and distribute.
