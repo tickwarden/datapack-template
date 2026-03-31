@@ -9,18 +9,18 @@ datapack-template/
 ├── pack.png                 # Datapack icon (optional, 64x64 PNG)
 ├── data/
 │   └── CHANGE_ME/           # ← Rename this to your namespace
-│       ├── function/
+│       ├── function(s)/
 │       │   ├── load.mcfunction   # Runs once on load/reload
 │       │   └── tick.mcfunction   # Runs every game tick
 │       └── tags/
-│           └── function/
+│           └── function(s)/
 │               ├── load.json     # Registers load.mcfunction
 │               └── tick.json     # Registers tick.mcfunction
 ├── .gitattributes           # Prevents CRLF line ending issues
 ├── .github/
+│   └── README.md
 │   └── workflows/
 │       └── mcfunction-lint.yml  # Auto-checks code on push
-└── README.md
 ```
 
 ## 🚀 Getting Started
