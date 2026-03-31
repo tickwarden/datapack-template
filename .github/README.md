@@ -19,6 +19,7 @@ datapack-template/
 ├── .gitattributes           # Prevents CRLF line ending issues
 ├── .github/
 │   └── README.md
+│   └── SECURITY.md
 │   └── workflows/
 │       └── mcfunction-lint.yml  # Auto-checks code on push
 ```
