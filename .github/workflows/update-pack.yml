@@ -1,0 +1,39 @@
+name: pack.mcmeta Açıklamasını Güncelle
+
+on:
+  workflow_dispatch:
+    inputs:
+      description:
+        description: "Yeni açıklamayı yaz"
+        required: true
+        type: string
+
+jobs:
+  update-pack-meta:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Depoyu çek
+        uses: actions/checkout@v4
+
+      - name: Açıklamayı güncelle
+        run: |
+          DESC="${{ github.event.inputs.description }}"
+
+          jq --arg desc "$DESC" '.pack.description = $desc' pack.mcmeta > temp.json
+          mv temp.json pack.mcmeta
+
+      - name: Değişiklikleri commit et ve pushla
+        run: |
+          git config user.name "GitHub Action"
+          git config user.email "action@github.com"
+
+          git add pack.mcmeta
+
+          git diff --cached --quiet && echo "Değişiklik yok" && exit 0
+
+          git commit -m "chore: pack.mcmeta açıklaması güncellendi [skip ci]"
+          git push
