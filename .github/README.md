@@ -2,6 +2,34 @@
 
 A clean, ready-to-use Minecraft Java Edition datapack template with lint workflows included.
 
+
+
+
+
+---
+> [!CAUTION]
+> **This repository has been permanently archived.**
+> Development on this project has been discontinued. No future versions,
+> updates, or successors are planned. The codebase is preserved as-is
+> for reference purposes only.
+
+---
+
+## 🗄️ Archive Notice
+
+This repository was permanently archived on **April 12, 2026**.
+
+**This project is no longer maintained and will not receive any future updates.**
+No new issues, pull requests, forks intended for continuation, or contributions
+will be reviewed or accepted.
+
+The repository remains public solely as a historical reference.
+Use at your own risk — compatibility with current or future Minecraft versions
+is not guaranteed.
+---
+
+
+
 ## 📁 File Structure
 ```
 datapack-template/
