@@ -49,7 +49,7 @@ datapack-template/
 
 ## ⚠️ Requirements
 
-- Minecraft Java Edition **1.21.4+** (pack format 61)
+- Minecraft Java Edition **26.3** (pack format 122)
 - No mods required — vanilla only
 
 ## 🤝 Contributing
@@ -68,6 +68,3 @@ Contributions are welcome!
 > **Note:** Please keep all `.mcfunction` files in **LF** line endings.  
 > Use `git config core.autocrlf false` before committing.
 
-## 📄 License
-
-MIT — free to use, modify, and distribute.
