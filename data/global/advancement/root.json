@@ -1,0 +1,18 @@
+{
+  "display": {
+    "icon": {
+      "id": "minecraft:repeating_command_block"
+    },
+    "title": "Root",
+    "description": "",
+    "show_toast": false,
+    "announce_to_chat": false,
+    "hidden": false,
+    "background": "minecraft:block/gray_concrete"
+  },
+  "criteria": {
+    "root": {
+      "trigger": "minecraft:tick"
+    }
+  }
+}
