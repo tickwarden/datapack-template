@@ -15,42 +15,37 @@ on:
     paths:
       - '**/*.mcfunction'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   # ─────────────────────────────────────────────
-  # 1. CRLF Line Ending Detection
+  # 1. Hızlı Shell/Regex Kontrolleri (Tek Paralel Job)
   # ─────────────────────────────────────────────
-  lint-crlf:
-    name: CRLF Check
+  static-analysis:
+    name: Static Code Analysis
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - name: Detect CRLF line endings in .mcfunction files
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: CRLF Check
         run: |
+          echo "::group::CRLF Line Ending Scan"
           FAILED=0
           while IFS= read -r f; do
             if file "$f" | grep -q "CRLF"; then
-              echo "FAIL [CRLF]: $f"
+              echo "::error file=$f,title=CRLF Detected::File has CRLF line endings. Run dos2unix."
               FAILED=1
             fi
           done < <(find data -name "*.mcfunction" 2>/dev/null)
-          if [ $FAILED -ne 0 ]; then
-            echo ""
-            echo "Fix: git config core.autocrlf false && dos2unix <file>"
-            exit 1
-          fi
-          echo "PASSED: No CRLF line endings found."
+          echo "::endgroup::"
+          [ $FAILED -ne 0 ] && exit 1 || echo "PASSED: No CRLF line endings found."
 
-  # ─────────────────────────────────────────────
-  # 2. Macro Line Prefix Check
-  #    Macro değişkeni $(var) kullanan satırlar $ ile başlamalı
-  # ─────────────────────────────────────────────
-  lint-macro-prefix:
-    name: Macro Line Prefix
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - name: Check macro variable lines start with $
+      - name: Macro Line Prefix Check
         run: |
+          echo "::group::Macro Prefix ($) Scan"
           FAILED=0
           while IFS= read -r f; do
             lineno=0
@@ -60,108 +55,78 @@ jobs:
               [[ "$stripped" == "#"* || -z "$stripped" ]] && continue
               if echo "$line" | grep -qP '\$\([a-zA-Z_][a-zA-Z0-9_]*\)'; then
                 if ! echo "$line" | grep -qP '^\s*\$'; then
-                  echo "FAIL [macro-prefix] $f:$lineno: "'\$(var)'" used on non-macro line"
-                  echo "  > $line"
+                  echo "::error file=$f,line=$lineno,title=Missing Macro Prefix::Macro variable \$(var) used on non-macro line."
                   FAILED=1
                 fi
               fi
             done < "$f"
           done < <(find data -name "*.mcfunction" 2>/dev/null)
+          echo "::endgroup::"
           [ $FAILED -ne 0 ] && exit 1 || echo "PASSED: All macro variables on correct lines."
 
-  # ─────────────────────────────────────────────
-  # 3. INPUT Comment Coverage
-  #    $(var) kullanan dosyalar # INPUT: yorumuna sahip olmalı
-  # ─────────────────────────────────────────────
-  lint-input-comment:
-    name: INPUT Comment Coverage
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - name: Check INPUT comment presence where macros are used
+      - name: INPUT Comment & @p Selector Checks
         run: |
-          WARN=0
+          echo "::group::Code Quality & Best Practices Scan"
           while IFS= read -r f; do
+            # INPUT comment check
             has_macro=$(grep -cP '^\$' "$f") || has_macro=0
             has_input=$(grep -cP '^# INPUT:' "$f") || has_input=0
             if [ "${has_macro:-0}" -gt 0 ] && [ "${has_input:-0}" -eq 0 ]; then
-              echo "WARN [no-input-comment]: $f"
-              WARN=$((WARN + 1))
+              echo "::warning file=$f,title=Missing INPUT Comment::File uses macro variables (\$) but lacks '# INPUT:' documentation header."
             fi
-          done < <(find data -name "*.mcfunction" 2>/dev/null)
-          if [ $WARN -gt 0 ]; then
-            echo ""
-            echo "WARN: $WARN file(s) use macro variables but have no '# INPUT:' comment."
-          else
-            echo "PASSED: All macro files have INPUT comments."
-          fi
 
-  # ─────────────────────────────────────────────
-  # 4. @p Selector Usage
-  #    Bu projede @p yerine @a[name=...,limit=1] kullanılır
-  # ─────────────────────────────────────────────
-  lint-at-p:
-    name: "@p Selector Check"
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - name: Warn on @p usage
-        run: |
-          FOUND=0
-          while IFS= read -r f; do
+            # @p selector check
             lineno=0
             while IFS= read -r line; do
               lineno=$((lineno + 1))
               stripped=$(echo "$line" | sed 's/^[[:space:]]*//')
               [[ "$stripped" == "#"* || -z "$stripped" ]] && continue
               if echo "$line" | grep -qP '@p\b'; then
-                echo "WARN [@p]: $f:$lineno"
-                echo "  > $line"
-                FOUND=$((FOUND + 1))
+                echo "::warning file=$f,line=$lineno,title=Avoid @p Selector::Use @a[name=\$(player),limit=1] or context-bound selectors instead of @p."
               fi
             done < "$f"
           done < <(find data -name "*.mcfunction" 2>/dev/null)
-          if [ $FOUND -gt 0 ]; then
-            echo ""
-            echo "WARN: $FOUND @p occurrence(s). Prefer @a[name=\$(player),limit=1]."
-          else
-            echo "PASSED: No @p usage found."
-          fi
-
-  # ─────────────────────────────────────────────
-  # 5. Trailing Whitespace
-  # ─────────────────────────────────────────────
-  lint-trailing-whitespace:
-    name: Trailing Whitespace
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - name: Detect trailing whitespace in .mcfunction files
-        run: |
-          FOUND=0
-          while IFS= read -r f; do
-            count=$(grep -cP '\s+$' "$f") || count=0
-            if [ "${count:-0}" -gt 0 ]; then
-              echo "WARN [trailing-ws]: $f ($count line(s))"
-              FOUND=$((FOUND + count))
-            fi
-          done < <(find data -name "*.mcfunction" 2>/dev/null)
-          [ $FOUND -gt 0 ] && echo "WARN: $FOUND total trailing whitespace line(s)." || echo "PASSED"
-
-  # ─────────────────────────────────────────────
-  # 6. Trailing syntax with mecha
-  # ─────────────────────────────────────────────
-  lint-mecha:
-    name: Trailing Whitespace
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - name: Detect trailing whitespace in .mcfunction files
-        run: |
-          echo "::group::Install mecha"
-          echo "pip install mecha"
           echo "::endgroup::"
 
-          echo "::group::Validate with mecha"
-          echo "mecha ."
+      - name: Trailing Whitespace Check
+        run: |
+          echo "::group::Trailing Whitespace Scan"
+          while IFS= read -r f; do
+            lineno=0
+            while IFS= read -r line; do
+              lineno=$((lineno + 1))
+              if echo "$line" | grep -qP '\s+$'; then
+                echo "::warning file=$f,line=$lineno,title=Trailing Whitespace::Line contains trailing spaces or tabs."
+              fi
+            done < "$f"
+          done < <(find data -name "*.mcfunction" 2>/dev/null)
+          echo "::endgroup::"
+
+  # ─────────────────────────────────────────────
+  # 2. Mecha Validation (Cached Python Environment)
+  # ─────────────────────────────────────────────
+  mecha-lint:
+    name: Mecha AST Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          echo "::group::Pip Package Installation"
+          python -m pip install --upgrade pip
+          pip install mecha
+          echo "::endgroup::"
+
+      - name: Run Mecha Validator
+        run: |
+          echo "::group::AST & Syntax Validation"
+          mecha .
           echo "::endgroup::"
