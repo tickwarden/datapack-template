@@ -1,0 +1,129 @@
+name: Release and Publish Datapack
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release Version (e.g., v1.0.0 or 1.0.0)"
+        required: true
+        type: string
+      release_type:
+        description: "Release Type"
+        required: true
+        default: "release"
+        type: choice
+        options:
+          - release
+          - beta
+          - alpha
+      changelog:
+        description: "Changelog / Release Notes"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-publish:
+    name: Package & Publish Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+
+      - name: Pipeline Execution
+        id: prep
+        run: |
+          # ANSI Renk ve Stil Tanımları
+          C_RESET="\033[0m"
+          C_BOLD="\033[1m"
+          C_DIM="\033[2m"
+          C_ITALIC="\033[3m"
+          
+          C_CYAN="\033[36m"
+          C_GREEN="\033[32m"
+          C_YELLOW="\033[33m"
+          C_BLUE="\033[34m"
+
+          echo "::group::Build Process"
+
+          echo "::group::Version Parsing"
+          RAW_VER="${{ github.event.inputs.version }}"
+          CLEAN_VER="${RAW_VER#v}"
+          TAG_NAME="v${CLEAN_VER}"
+
+          echo "clean_version=${CLEAN_VER}" >> $GITHUB_OUTPUT
+          echo "tag_name=${TAG_NAME}" >> $GITHUB_OUTPUT
+          echo "zip_name=datapack-${TAG_NAME}.zip" >> $GITHUB_OUTPUT
+
+          echo -e "${C_CYAN}${C_BOLD}Target Version:${C_RESET} ${C_YELLOW}${CLEAN_VER}${C_RESET}"
+          echo -e "${C_CYAN}${C_BOLD}Target Tag:${C_RESET}     ${C_GREEN}${TAG_NAME}${C_RESET}"
+          echo "::endgroup::"
+
+          echo "::group::Update pack.mcmeta"
+          if [ -f "pack.mcmeta" ]; then
+            jq --arg ver "$CLEAN_VER" '.pack.version = $ver' pack.mcmeta > temp.json || jq '.' pack.mcmeta > temp.json
+            mv temp.json pack.mcmeta
+            echo -e "${C_GREEN}✔ Updated pack.mcmeta version to ${C_BOLD}$CLEAN_VER${C_RESET}"
+          else
+            echo -e "${C_YELLOW}${C_ITALIC}⚠ pack.mcmeta not found, skipping version injection.${C_RESET}"
+          fi
+          echo "::endgroup::"
+
+          echo "::group::Packaging Zip"
+          ZIP_NAME="datapack-${TAG_NAME}.zip"
+          
+          echo -e "${C_BLUE}Zipping datapack contents...${C_RESET}"
+          zip -r "$ZIP_NAME" pack.mcmeta data/ assets/ LICENSE README.md -x "*.git*" ".github/*"
+          
+          echo -e "${C_BLUE}Generating SHA-256 checksum...${C_RESET}"
+          sha256sum "$ZIP_NAME" > "${ZIP_NAME}.sha256"
+          echo -e "${C_DIM}$(cat "${ZIP_NAME}.sha256")${C_RESET}"
+          echo "::endgroup::"
+
+          echo "::endgroup::"
+
+          echo "::group::Git Operations"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          echo -e "${C_BLUE}Staging modified files...${C_RESET}"
+          git add pack.mcmeta
+          git diff --cached --quiet || git commit -m "chore(release): prepare release ${TAG_NAME} [skip ci]"
+          
+          echo -e "${C_GREEN}${C_BOLD}Creating git tag: ${TAG_NAME}${C_RESET}"
+          git tag -a "${TAG_NAME}" -m "Release ${TAG_NAME}"
+          git push origin HEAD --follow-tags
+          echo "::endgroup::"
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.prep.outputs.tag_name }}-package
+          path: |
+            ${{ steps.prep.outputs.zip_name }}
+            ${{ steps.prep.outputs.zip_name }}.sha256
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ steps.prep.outputs.tag_name }}
+          name: "Release ${{ steps.prep.outputs.tag_name }}"
+          body: |
+            ${{ github.event.inputs.changelog || 'No changelog provided.' }}
+
+            ### SHA-256 Checksum
+            ```
+            $(cat${{ steps.prep.outputs.zip_name }}.sha256)
+            ```
+          prerelease: ${{ github.event.inputs.release_type != 'release' }}
+          files: |
+            ${{ steps.prep.outputs.zip_name }}
+            ${{ steps.prep.outputs.zip_name }}.sha256
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
