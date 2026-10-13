@@ -19,4 +19,4 @@ scoreboard players add $global CHANGE_ME.main 1
 # Run player-specific tick logic using a scoped selector (@s).
 # Always enforce scope-bound selectors for multiplayer safety.
 # Example:
-execute as @a at @s run function CHANGE_ME:player/tick
+execute as @a at @s run function change_me:player/tick
